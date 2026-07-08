@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HEIC 2 JPEG 1 CLICK CONVERT</title>
+</head>
+<body>
+<!-- HEIC 2 JPEG 1 CLICK CONVERT -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+
+<style>
+  :root {
+    --ink: #1c1b19;
+    --paper: #f7f5f1;
+    --line: #d8d3c8;
+    --accent: #2f5d4f;
+    --accent-soft: #e7efeb;
+    --warn: #b5443a;
+    --warn-soft: #f5e6e4;
+    --loading: #8a8570;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    background: var(--paper);
+    margin: 0;
+    min-height: 100%;
+  }
+
+  #app-root {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    padding: 32px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 24px;
+  }
+
+  .header h1 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .header .count {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  .dropzone {
+    border: 1.5px dashed var(--line);
+    border-radius: 10px;
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .dropzone:hover, .dropzone.drag {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .dropzone p {
+    margin: 0;
+    font-size: 14px;
+    color: #6b675e;
+  }
+
+  .dropzone .big {
+    font-size: 15px;
+    color: var(--ink);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  #file-input { display: none; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .card.has-error {
+    border-color: var(--warn);
+  }
+
+  .card img {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    display: block;
+    background: #eee;
+  }
+
+  .card .img-placeholder {
+    width: 100%;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eee;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #9b968a;
+    text-align: center;
+    padding: 4px;
+  }
+
+  .card .meta {
+    padding: 6px 8px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #6b675e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card.has-error .meta {
+    color: var(--warn);
+  }
+
+  .card .status {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 6px;
+    border-radius: 10px;
+  }
+
+  .card .status.loading {
+    background: var(--loading);
+  }
+
+  .card .status.error {
+    background: var(--warn);
+    cursor: help;
+  }
+
+  .card .remove {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(28,27,25,0.7);
+    color: #fff;
+    border: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  button.primary {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 1;
+  }
+
+  button.primary:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  button.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    padding: 11px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .note {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: #6b675e;
+    margin-top: 14px;
+    line-height: 1.5;
+  }
+
+  .note.warn {
+    color: var(--warn);
+    background: var(--warn-soft);
+    padding: 8px 10px;
+    border-radius: 6px;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: #9b968a;
+    font-size: 13px;
+    padding: 20px 0 4px;
+  }
+</style>
+
+<div id="app-root">
+  <div class="header">
+    <h1>HEIC 2 JPEG 1 CLICK CONVERT</h1>
+    <span class="count" id="count-badge">0 / 20 selected</span>
+  </div>
+
+  <div class="dropzone" id="dropzone">
+    <div class="big">Click to choose photos</div>
+    <p>or drag and drop &middot; up to 20 files &middot; any image source, including HEIC</p>
+  </div>
+  <input type="file" id="file-input" accept="image/*,.heic,.heif" multiple />
+
+  <div id="grid" class="grid"></div>
+  <div id="empty-msg" class="empty-state">No photos selected yet.</div>
+
+  <div class="actions">
+    <button class="secondary" id="folder-btn">Choose save folder…</button>
+    <button class="primary" id="convert-btn" disabled>Convert to JPEG</button>
+    <button class="secondary" id="clear-btn">Clear all</button>
+  </div>
+
+  <div class="note warn" id="status-msg" style="display:none;"></div>
+
+  <div class="note" id="folder-note">
+    Saving to: <strong>Downloads</strong> (browser default). Click "Choose save folder…" to pick a different one — supported in Chrome and Edge.
+  </div>
+  <div class="note">
+    Each photo is converted to .jpeg at its original pixel dimensions — no resizing, no cropping, no scaling. HEIC/HEIF photos (e.g. from iPhone) are decoded automatically.
+  </div>
+</div>
+
+<script>
+(function() {
+  const MAX_FILES = 20;
+  // entry: { id, file, name, previewUrl, status: 'loading'|'pending'|'done'|'error',
+  //          blob, outputName, isHeic, heicJpegBlob, error, savedToFolder }
+  let files = [];
+  let isConverting = false;
+
+  const dropzone = document.getElementById('dropzone');
+  const fileInput = document.getElementById('file-input');
+  const grid = document.getElementById('grid');
+  const countBadge = document.getElementById('count-badge');
+  const convertBtn = document.getElementById('convert-btn');
+  const clearBtn = document.getElementById('clear-btn');
+  const emptyMsg = document.getElementById('empty-msg');
+  const folderBtn = document.getElementById('folder-btn');
+  const folderNote = document.getElementById('folder-note');
+  const statusMsg = document.getElementById('status-msg');
+
+  let dirHandle = null;
+  const supportsDirPicker = 'showDirectoryPicker' in window;
+  let statusTimer = null;
+
+  if (!supportsDirPicker) {
+    folderBtn.disabled = true;
+    folderBtn.title = 'Not supported in this browser — files will go to Downloads';
+  }
+
+  folderBtn.addEventListener('click', async () => {
+    try {
+      dirHandle = await window.showDirectoryPicker();
+      folderNote.innerHTML = `Saving to: <strong>${dirHandle.name}</strong> (chosen folder).`;
+    } catch (err) {
+      // user cancelled picker — leave as-is
+    }
+  });
+
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('drag');
+  });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    addFiles(Array.from(e.dataTransfer.files));
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    addFiles(Array.from(e.target.files));
+    fileInput.value = '';
+  });
+
+  clearBtn.addEventListener('click', () => {
+    files.forEach(f => { if (f.previewUrl) URL.revokeObjectURL(f.previewUrl); });
+    files = [];
+    render();
+  });
+
+  function showTransientMessage(msg) {
+    statusMsg.textContent = msg;
+    statusMsg.style.display = 'block';
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(() => { statusMsg.style.display = 'none'; }, 6000);
+  }
+
+  function isHeicFile(f) {
+    const type = (f.type || '').toLowerCase();
+    const name = (f.name || '').toLowerCase();
+    return type === 'image/heic' || type === 'image/heif' ||
+           name.endsWith('.heic') || name.endsWith('.heif');
+  }
+
+  async function addFiles(newFiles) {
+    // Browsers often report a blank/octet-stream MIME type for HEIC, so
+    // treat those as candidates too based on filename.
+    const candidates = newFiles.filter(f => f.type.startsWith('image/') || isHeicFile(f));
+    const room = MAX_FILES - files.length;
+    const accepted = candidates.slice(0, Math.max(room, 0));
+    const skippedCount = (newFiles.length - accepted.length);
+
+    for (const f of accepted) {
+      const entry = {
+        id: Math.random().toString(36).slice(2),
+        file: f,
+        name: f.name,
+        previewUrl: null,
+        status: 'loading',
+        blob: null,
+        outputName: null,
+        isHeic: isHeicFile(f),
+        heicJpegBlob: null,
+        error: null,
+        savedToFolder: false
+      };
+      files.push(entry);
+      render();
+      // Sequential so the grid fills in progressively rather than all
+      // spinners resolving at once.
+      await preparePreview(entry);
+    }
+
+    if (skippedCount > 0) {
+      showTransientMessage(
+        `${skippedCount} file${skippedCount > 1 ? 's' : ''} skipped — 20 max, or not a recognized image type.`
+      );
+    }
+  }
+
+  async function preparePreview(entry) {
+    try {
+      if (entry.isHeic) {
+        if (typeof heic2any !== 'function') {
+          throw new Error('HEIC decoder failed to load');
+        }
+        const converted = await heic2any({ blob: entry.file, toType: 'image/jpeg', quality: 0.92 });
+        const blob = Array.isArray(converted) ? converted[0] : converted;
+        entry.heicJpegBlob = blob;
+        entry.previewUrl = URL.createObjectURL(blob);
+      } else {
+        entry.previewUrl = URL.createObjectURL(entry.file);
+      }
+      entry.status = 'pending';
+    } catch (err) {
+      console.error('Preview/decode failed for', entry.name, err);
+      entry.status = 'error';
+      entry.error = entry.isHeic
+        ? 'Could not decode this HEIC photo'
+        : 'Could not read this image';
+    }
+    render();
+  }
+
+  function removeFile(id) {
+    const entry = files.find(f => f.id === id);
+    if (entry && entry.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+    files = files.filter(f => f.id !== id);
+    render();
+  }
+
+  function stripToBaseName(name) {
+    const dot = name.lastIndexOf('.');
+    const base = dot > -1 ? name.slice(0, dot) : name;
+    return base.replace(/[^a-zA-Z0-9]/g, '') || 'photo';
+  }
+
+  function render() {
+    countBadge.textContent = `${files.length} / ${MAX_FILES} selected`;
+    const anyLoading = files.some(f => f.status === 'loading');
+    convertBtn.disabled = files.length === 0 || anyLoading || isConverting;
+    emptyMsg.style.display = files.length === 0 ? 'block' : 'none';
+
+    grid.innerHTML = '';
+    files.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'card' + (f.status === 'error' ? ' has-error' : '');
+
+      let statusHtml = '';
+      if (f.status === 'done') statusHtml = '<span class="status">JPEG</span>';
+      else if (f.status === 'loading') statusHtml = '<span class="status loading">…</span>';
+      else if (f.status === 'error') statusHtml = `<span class="status error" title="${f.error || 'Failed'}">!</span>`;
+
+      const imgHtml = f.previewUrl
+        ? `<img src="${f.previewUrl}" />`
+        : `<div class="img-placeholder">${f.status === 'loading' ? 'Decoding…' : 'No preview'}</div>`;
+
+      card.innerHTML = `
+        <button class="remove" data-id="${f.id}">&times;</button>
+        ${statusHtml}
+        ${imgHtml}
+        <div class="meta" title="${f.error || f.name}">${f.status === 'error' ? (f.error || 'Error') : f.name}</div>
+      `;
+      grid.appendChild(card);
+    });
+
+    grid.querySelectorAll('.remove').forEach(btn => {
+      btn.addEventListener('click', (e) => removeFile(e.target.dataset.id));
+    });
+  }
+
+  function convertOne(entry) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        // Flatten transparency onto white so JPEG (no alpha) looks correct
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (!blob) return reject(new Error('Conversion failed'));
+          resolve(blob);
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = reject;
+      img.src = entry.previewUrl;
+    });
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  async function saveToChosenFolder(blob, filename) {
+    const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+  }
+
+  convertBtn.addEventListener('click', async () => {
+    isConverting = true;
+    convertBtn.disabled = true;
+    convertBtn.textContent = 'Converting…';
+
+    const usedNames = new Set(
+      files.filter(f => f.status === 'done' && f.outputName).map(f => f.outputName)
+    );
+
+    for (const entry of files) {
+      // Already converted, or still decoding — leave alone.
+      if (entry.status === 'done' || entry.status === 'loading') continue;
+
+      try {
+        // HEIC files are already JPEG-decoded during preview — reuse that
+        // blob directly instead of re-encoding through canvas.
+        const blob = entry.isHeic && entry.heicJpegBlob
+          ? entry.heicJpegBlob
+          : await convertOne(entry);
+
+        entry.blob = blob;
+        entry.status = 'done';
+        entry.error = null;
+
+        let base = stripToBaseName(entry.name);
+        let finalName = `${base}.jpeg`;
+        let n = 2;
+        while (usedNames.has(finalName)) {
+          finalName = `${base}${n}.jpeg`;
+          n++;
+        }
+        usedNames.add(finalName);
+        entry.outputName = finalName;
+      } catch (err) {
+        console.error('Failed to convert', entry.name, err);
+        entry.status = 'error';
+        entry.error = 'Conversion failed';
+      }
+      render();
+    }
+
+    const doneFiles = files.filter(f => f.status === 'done');
+
+    if (doneFiles.length === 0) {
+      showTransientMessage('Nothing converted successfully — check the flagged photos above.');
+    } else if (dirHandle) {
+      convertBtn.textContent = 'Saving to folder…';
+      let anyFolderFailure = false;
+      for (const f of doneFiles) {
+        try {
+          await saveToChosenFolder(f.blob, f.outputName);
+          f.savedToFolder = true;
+        } catch (err) {
+          console.error('Folder save failed for', f.name, err);
+          anyFolderFailure = true;
+        }
+      }
+      // Only fall back to downloading files that didn't actually save,
+      // so successfully-saved files aren't duplicated into Downloads too.
+      const notSaved = doneFiles.filter(f => !f.savedToFolder);
+      if (notSaved.length > 0) {
+        if (notSaved.length === 1) {
+          downloadBlob(notSaved[0].blob, notSaved[0].outputName);
+        } else if (typeof JSZip === 'undefined') {
+          notSaved.forEach(f => downloadBlob(f.blob, f.outputName));
+        } else {
+          try {
+            const zip = new JSZip();
+            notSaved.forEach(f => zip.file(f.outputName, f.blob));
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            downloadBlob(zipBlob, 'converted_jpegs.zip');
+          } catch (err) {
+            console.error('Zip failed, falling back to individual downloads', err);
+            notSaved.forEach(f => downloadBlob(f.blob, f.outputName));
+          }
+        }
+        if (anyFolderFailure) {
+          showTransientMessage(`${notSaved.length} file(s) couldn't save to the chosen folder — downloaded instead.`);
+        }
+      }
+    } else {
+      convertBtn.textContent = 'Preparing download…';
+      if (doneFiles.length === 1) {
+        downloadBlob(doneFiles[0].blob, doneFiles[0].outputName);
+      } else if (typeof JSZip === 'undefined') {
+        showTransientMessage('Zip library unavailable — downloading files individually instead.');
+        doneFiles.forEach(f => downloadBlob(f.blob, f.outputName));
+      } else {
+        try {
+          const zip = new JSZip();
+          doneFiles.forEach(f => zip.file(f.outputName, f.blob));
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          downloadBlob(zipBlob, 'converted_jpegs.zip');
+        } catch (err) {
+          console.error('Zip failed, falling back to individual downloads', err);
+          doneFiles.forEach(f => downloadBlob(f.blob, f.outputName));
+        }
+      }
+    }
+
+    convertBtn.textContent = 'Convert to JPEG';
+    isConverting = false;
+    render();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
